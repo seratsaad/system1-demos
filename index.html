@@ -21,7 +21,7 @@
   .keyrow input, .keyrow select { font: inherit; padding: 7px 10px; border-radius: 6px; border: 1px solid #3c5c55; background: #0d2823; color: #fff; }
   .keyrow input { width: min(380px, 100%); }
   .keyrow small { color: #9DB3AA; }
-  nav { display: flex; gap: 6px; margin: 20px 0 10px; }
+  nav { display: flex; gap: 6px; margin: 20px 0 10px; flex-wrap: wrap; }
   nav button { font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
   nav button.on { background: var(--green); border-color: var(--green); color: #fff; }
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
@@ -32,22 +32,25 @@
   .item { padding: 8px 10px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 14px; }
   .item:hover, .item.sel { background: var(--mint); }
   .item .cat { color: var(--muted); font-size: 12px; }
-  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; max-height: 380px; overflow-y: auto; }
-  .gal img { width: 100%; aspect-ratio: 1; border-radius: 6px; cursor: pointer; border: 3px solid transparent; display: block; }
-  .gal img.sel { border-color: var(--green); }
-  textarea, .coords input { width: 100%; font: inherit; font-size: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; max-height: 380px; overflow-y: auto; }
+  .thumbs.wide { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .thumbs img { width: 100%; border-radius: 6px; cursor: pointer; border: 3px solid transparent; display: block; background: #fff; }
+  .thumbs:not(.wide) img { aspect-ratio: 1; }
+  .thumbs img.sel { border-color: var(--green); }
   .coords { display: flex; gap: 8px; margin-top: 8px; }
+  .coords input { width: 100%; font: inherit; font-size: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
   .btn { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px; border: 0; cursor: pointer; color: #fff; }
   .btn.choose { background: var(--green); } .btn.write { background: var(--maroon); }
   .btn:disabled { opacity: 0.5; cursor: default; }
   label.opt { font-size: 14px; color: var(--muted); }
   .item-view { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: 14px; }
-  .item-view img { width: 180px; max-width: 100%; border-radius: 6px; display: block; margin-bottom: 8px; }
+  .item-view img { max-width: 100%; border-radius: 6px; display: block; margin-bottom: 8px; }
+  .item-view img.square { width: 180px; }
   .truth { color: var(--muted); font-size: 13px; }
   .result { background: #fff; border-radius: 8px; padding: 12px; border: 1px solid var(--line); margin-top: 10px; }
   .result h3 { margin: 0 0 6px; font-size: 16px; }
-  .bar { display: grid; grid-template-columns: 110px 1fr 48px; gap: 8px; align-items: center; font-size: 14px; margin: 3px 0; }
+  .bar { display: grid; grid-template-columns: 130px 1fr 48px; gap: 8px; align-items: center; font-size: 14px; margin: 3px 0; }
   .bar .track { background: var(--card); border-radius: 4px; height: 14px; overflow: hidden; }
   .bar .fill { background: var(--green); height: 100%; }
   .bar.best { font-weight: 700; }
@@ -55,8 +58,8 @@
   .ok { color: var(--green); font-weight: 700; } .bad { color: var(--maroon); font-weight: 700; }
   .written { white-space: pre-wrap; font-size: 14px; }
   .err { color: var(--maroon); font-size: 14px; }
+  .ctrls { max-height: 180px; overflow-y: auto; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
   footer { color: var(--faint); font-size: 12px; padding: 24px 0 40px; }
-  footer a { color: var(--deep); }
 </style>
 </head>
 <body>
@@ -74,9 +77,9 @@
 
 <main class="wrap">
   <nav>
-    <button id="tab-web" class="on" onclick="tab('web')">1 · One browser step</button>
-    <button id="tab-arxiv" onclick="tab('arxiv')">2 · arXiv categories</button>
-    <button id="tab-gz" onclick="tab('gz')">3 · Galaxy morphology</button>
+    <button id="tab-web" class="on" onclick="tab('web')">1 · Browser agent</button>
+    <button id="tab-gz" onclick="tab('gz')">2 · Galaxy morphology</button>
+    <button id="tab-sp" onclick="tab('sp')">3 · Spectra</button>
   </nav>
 
   <section id="web">
@@ -99,41 +102,20 @@
     </div>
   </section>
 
-  <section id="arxiv" hidden>
-    <div class="grid">
-      <div class="panel">
-        <h2>Pick a paper</h2>
-        <div class="list" id="paperlist"></div>
-        <p class="truth" style="margin:8px 0 4px">Or paste a title and abstract:</p>
-        <textarea id="ownpaper" rows="4" placeholder="Title, then abstract"></textarea>
-      </div>
-      <div class="panel">
-        <h2>Ask the model</h2>
-        <div class="item-view" id="paperview">Choose a paper on the left.</div>
-        <div class="row">
-          <button class="btn choose" onclick="runArxiv('choose')">Choose</button>
-          <button class="btn write" onclick="runArxiv('write')">Write</button>
-          <label class="opt"><input type="checkbox" id="avg-arxiv" checked> average over option orders</label>
-        </div>
-        <div id="arxivout"></div>
-      </div>
-    </div>
-  </section>
-
   <section id="gz" hidden>
     <div class="grid">
       <div class="panel">
         <h2>Pick a galaxy</h2>
-        <div class="gal" id="gallist"></div>
+        <div class="thumbs" id="gallist"></div>
         <p class="truth" style="margin:8px 0 4px">Or any SDSS position (degrees):</p>
         <div class="coords"><input id="ra" placeholder="RA"><input id="dec" placeholder="Dec"><button class="btn choose" style="padding:6px 12px" onclick="useCoords()">Load</button></div>
       </div>
       <div class="panel">
-        <h2>Ask the model</h2>
+        <h2>Spiral, elliptical or merger?</h2>
         <div class="item-view" id="galview">Choose a galaxy on the left.</div>
         <div class="row">
-          <button class="btn choose" onclick="runGz('choose')">Choose</button>
-          <button class="btn write" onclick="runGz('write')">Write</button>
+          <button class="btn choose" onclick="runImage('gz', 'choose')">Choose</button>
+          <button class="btn write" onclick="runImage('gz', 'write')">Write</button>
           <label class="opt"><input type="checkbox" id="avg-gz" checked> average over option orders</label>
         </div>
         <div id="gzout"></div>
@@ -141,30 +123,54 @@
     </div>
   </section>
 
+  <section id="sp" hidden>
+    <div class="grid">
+      <div class="panel">
+        <h2>Pick a spectrum</h2>
+        <div class="thumbs wide" id="speclist"></div>
+      </div>
+      <div class="panel">
+        <h2>Star, galaxy or quasar?</h2>
+        <div class="item-view" id="specview">Choose a spectrum on the left.</div>
+        <div class="row">
+          <button class="btn choose" onclick="runImage('sp', 'choose')">Choose</button>
+          <button class="btn write" onclick="runImage('sp', 'write')">Write</button>
+          <label class="opt"><input type="checkbox" id="avg-sp" checked> average over option orders</label>
+        </div>
+        <div id="spout"></div>
+      </div>
+    </div>
+  </section>
+
   <footer>
-    Browser steps: the numbered controls JEV's loop saw on real astronomy sites, from runs that succeeded.
-    arXiv papers: the astro-ph "new" listing, with each paper's primary category as the answer. Galaxies: SDSS images
-    (skyserver.sdss.org) of Galaxy Zoo 2 galaxies with clear volunteer majorities (Willett et al. 2013, MNRAS 435, 2835).
-    Recorded results: <span id="recorded"></span>
+    Browser pages: the numbered controls JEV's loop saw on SIMBAD, arXiv, VizieR, ADS, NED and the ESO archive, from runs
+    that succeeded. Galaxies: SDSS images (skyserver.sdss.org) of Galaxy Zoo 2 galaxies with clear volunteer majorities
+    (Willett et al. 2013, MNRAS 435, 2835). Spectra: SDSS DR18 optical spectra, plotted without labels; the answer is the
+    SDSS spectroscopic class. Recorded results: <span id="recorded"></span>
   </footer>
 </main>
 
 <script src="data.js"></script>
 <script src="pages.js"></script>
 <script>
-const ARXIV = { galaxies: "Astrophysics of Galaxies", cosmology: "Cosmology and Nongalactic Astrophysics",
-  planets: "Earth and Planetary Astrophysics", "high-energy": "High Energy Astrophysical Phenomena",
-  instruments: "Instrumentation and Methods for Astrophysics", stars: "Solar and Stellar Astrophysics" };
-const GZ = ["elliptical", "spiral", "merger"];
-let paper = null, galaxy = null;
+const TABS = ["web", "gz", "sp"];
+const TASKS = {
+  gz: { labels: ["elliptical", "spiral", "merger"], detail: "low", out: "gzout", avg: "avg-gz",
+        question: "This is an SDSS image of a galaxy. Which class is it?" },
+  sp: { labels: ["star", "galaxy", "quasar"], detail: "high", out: "spout", avg: "avg-sp",
+        question: "This is an optical spectrum from SDSS. What kind of object is it?" },
+};
+const current = { gz: null, sp: null };
+let webpage = null;
 
 function tab(name) {
-  for (const t of ["web", "arxiv", "gz"]) {
+  for (const t of TABS) {
     document.getElementById(t).hidden = t !== name;
     document.getElementById("tab-" + t).classList.toggle("on", t === name);
   }
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = (x) => Math.round(x * 100) + "%";
 
 // ---- OpenAI calls -------------------------------------------------------------------------------
 async function ask(content, maxTokens, logprobs) {
@@ -181,10 +187,8 @@ async function ask(content, maxTokens, logprobs) {
 }
 
 async function choose(makeContent, labels, average) {
-  const n = labels.length, orders = average ? labels.map((_, s) => labels.slice(s).concat(labels.slice(0, s))) : [labels];
-  const t0 = performance.now();
+  const orders = average ? labels.map((_, s) => labels.slice(s).concat(labels.slice(0, s))) : [labels];
   const answers = await Promise.all(orders.map((o) => ask(makeContent(o), 1, true)));
-  const wall = (performance.now() - t0) / 1000;
   const total = Object.fromEntries(labels.map((l) => [l, 0]));
   answers.forEach(({ j }, k) => {
     const top = {};
@@ -193,7 +197,7 @@ async function choose(makeContent, labels, average) {
     orders[k].forEach((l, i) => { total[l] += p[i] / z / orders.length; });
   });
   const perCall = answers.map((a) => a.dt).sort((a, b) => a - b)[Math.floor(answers.length / 2)];
-  return { probs: total, best: labels.reduce((a, b) => (total[b] > total[a] ? b : a)), perCall, wall, calls: orders.length };
+  return { probs: total, best: labels.reduce((a, b) => (total[b] > total[a] ? b : a)), perCall, calls: orders.length };
 }
 
 async function write(makeContent, labels) {
@@ -210,7 +214,7 @@ function verdict(answer, truth) {
 }
 function showChoice(el, res, truth) {
   const bars = Object.entries(res.probs).sort((a, b) => b[1] - a[1]).map(([l, p]) =>
-    `<div class="bar ${l === res.best ? "best" : ""}"><span>${esc(l)}</span><div class="track"><div class="fill" style="width:${(p * 100).toFixed(1)}%"></div></div><span>${Math.round(p * 100)}%</span></div>`).join("");
+    `<div class="bar ${l === res.best ? "best" : ""}"><span>${esc(l)}</span><div class="track"><div class="fill" style="width:${(p * 100).toFixed(1)}%"></div></div><span>${pct(p)}</span></div>`).join("");
   el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Choose: ${esc(res.best)}${verdict(res.best, truth)}</h3>${bars}
     <div class="time">${res.perCall.toFixed(2)} s per call · ${res.calls} call${res.calls > 1 ? "s, run in parallel" : ""} · 1 output token each</div></div>`);
 }
@@ -224,86 +228,58 @@ async function run(el, fn) {
   btns.forEach((b) => (b.disabled = false));
 }
 
-// ---- arXiv --------------------------------------------------------------------------------------
-function arxivContent(p) {
-  return (order, written) => `Which astro-ph section does this paper belong to?\n\nTitle: ${p.title}\nAbstract: ${p.abstract}\n\nOptions:\n` +
-    order.map((l, i) => `[${i + 1}] ${ARXIV[l]} (${l})`).join("\n") + "\n\n" +
-    (written ? "Explain in one or two sentences, then name the section." : "Answer with the number only.\nAnswer: [");
-}
-function currentPaper() {
-  const own = document.getElementById("ownpaper").value.trim();
-  if (own) { const [t, ...rest] = own.split("\n"); return { title: t, abstract: rest.join(" ") || t, truth: null }; }
-  return paper;
-}
-function runArxiv(mode) {
-  const p = currentPaper(), el = document.getElementById("arxivout");
-  if (!p) return;
-  run(el, async () => {
-    const labels = Object.keys(ARXIV);
-    if (mode === "choose") showChoice(el, await choose(arxivContent(p), labels, document.getElementById("avg-arxiv").checked), p.truth);
-    else showWrite(el, await write(arxivContent(p), labels), p.truth);
-  });
-}
-function renderPapers() {
-  document.getElementById("paperlist").innerHTML = PAPERS.map((p, i) =>
-    `<div class="item" data-i="${i}"><div>${esc(p.title)}</div><div class="cat">arXiv:${esc(p.id)} · ${esc(ARXIV[p.truth])}</div></div>`).join("");
-  document.querySelectorAll("#paperlist .item").forEach((d) => d.onclick = () => {
-    document.querySelectorAll("#paperlist .item").forEach((x) => x.classList.remove("sel")); d.classList.add("sel");
-    paper = PAPERS[+d.dataset.i]; document.getElementById("ownpaper").value = "";
-    document.getElementById("paperview").innerHTML = `<b>${esc(paper.title)}</b><p>${esc(paper.abstract.slice(0, 420))}…</p><div class="truth">Answer: ${esc(ARXIV[paper.truth])}</div>`;
-    document.getElementById("arxivout").innerHTML = "";
-  });
-}
-
-// ---- Galaxy Zoo ---------------------------------------------------------------------------------
+// ---- Image tasks (galaxies, spectra) --------------------------------------------------------------
 async function toDataUrl(src) {
   const blob = await (await fetch(src)).blob();
   return await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
 }
-function gzContent(url) {
+function imageContent(task, url) {
   return (order, written) => [
-    { type: "text", text: "This is an SDSS image of a galaxy. Which class is it?\n\nOptions:\n" + order.map((l, i) => `[${i + 1}] ${l}`).join("\n") +
+    { type: "text", text: `${task.question}\n\nOptions:\n` + order.map((l, i) => `[${i + 1}] ${l}`).join("\n") +
       "\n\n" + (written ? "Explain in one or two sentences, then name the class." : "Answer with the number only.\nAnswer: [") },
-    { type: "image_url", image_url: { url, detail: "low" } }];
+    { type: "image_url", image_url: { url, detail: task.detail } }];
 }
-function runGz(mode) {
-  if (!galaxy) return;
-  const el = document.getElementById("gzout");
+function runImage(name, mode) {
+  const task = TASKS[name], item = current[name];
+  if (!item) return;
+  const el = document.getElementById(task.out);
   run(el, async () => {
-    const url = await toDataUrl(galaxy.img || galaxy.url);  // sent inline: OpenAI cannot always fetch SkyServer in time
-    if (mode === "choose") showChoice(el, await choose(gzContent(url), GZ, document.getElementById("avg-gz").checked), galaxy.truth);
-    else showWrite(el, await write(gzContent(url), GZ), galaxy.truth);
+    const url = await toDataUrl(item.img || item.url);  // sent inline: OpenAI cannot always fetch SkyServer in time
+    if (mode === "choose") showChoice(el, await choose(imageContent(task, url), task.labels, document.getElementById(task.avg).checked), item.truth);
+    else showWrite(el, await write(imageContent(task, url), task.labels), item.truth);
   });
 }
 function showGalaxy(g, src) {
-  galaxy = g;
-  document.getElementById("galview").innerHTML = `<img src="${esc(src)}" alt="SDSS image of the selected galaxy"><div class="truth">RA ${g.ra.toFixed(4)}, Dec ${g.dec.toFixed(4)}${g.truth ? " · Galaxy Zoo volunteers: " + esc(g.truth) : ""}</div>`;
+  current.gz = g;
+  document.getElementById("galview").innerHTML = `<img class="square" src="${esc(src)}" alt="SDSS image of the selected galaxy"><div class="truth">RA ${g.ra.toFixed(4)}, Dec ${g.dec.toFixed(4)}${g.truth ? " · Galaxy Zoo volunteers: " + esc(g.truth) : ""}</div>`;
   document.getElementById("gzout").innerHTML = "";
 }
 function useCoords() {
   const ra = parseFloat(document.getElementById("ra").value), dec = parseFloat(document.getElementById("dec").value);
   if (Number.isNaN(ra) || Number.isNaN(dec)) return;
   const url = `https://skyserver.sdss.org/dr18/SkyServerWS/ImgCutout/getjpeg?ra=${ra}&dec=${dec}&scale=0.3&width=256&height=256`;
-  document.querySelectorAll(".gal img").forEach((x) => x.classList.remove("sel"));
+  document.querySelectorAll("#gallist img").forEach((x) => x.classList.remove("sel"));
   showGalaxy({ ra, dec, truth: null, url }, url);
 }
-function renderGalaxies() {
-  const order = [...GALAXIES].sort((a, b) => (a.id > b.id ? 1 : -1));
-  document.getElementById("gallist").innerHTML = order.map((g) =>
-    `<img src="${esc(g.img)}" data-id="${esc(g.id)}" alt="SDSS galaxy ${esc(g.id)}" loading="lazy">`).join("");
-  document.querySelectorAll(".gal img").forEach((im) => im.onclick = () => {
-    document.querySelectorAll(".gal img").forEach((x) => x.classList.remove("sel")); im.classList.add("sel");
-    const g = GALAXIES.find((x) => x.id === im.dataset.id); showGalaxy(g, g.img);
+function renderThumbs(listId, items, onPick, alt) {
+  const order = [...items].sort((a, b) => (a.id > b.id ? 1 : -1));
+  document.getElementById(listId).innerHTML = order.map((it) =>
+    `<img src="${esc(it.img)}" data-id="${esc(it.id)}" alt="${esc(alt)}">`).join("");
+  document.querySelectorAll(`#${listId} img`).forEach((im) => im.onclick = () => {
+    document.querySelectorAll(`#${listId} img`).forEach((x) => x.classList.remove("sel")); im.classList.add("sel");
+    onPick(items.find((x) => x.id === im.dataset.id));
   });
 }
 
-// ---- One browser step --------------------------------------------------------------------------
-let webpage = null;
+// ---- Browser agent: one step ----------------------------------------------------------------------
 const ctrlLine = (c) => `[${c.i}] ${c.role} "${c.label}"${c.value ? ` value="${c.value}"` : ""} (${c.ops.join("/")})`;
 function webContent(pg, written) {
   return `You control a web browser. Goal: ${pg.goal}\nCurrent page: ${pg.url}\n\nControls on the page:\n` +
     pg.controls.map(ctrlLine).join("\n") + "\n\nWhich control should be used next? " +
     (written ? "Explain in one or two sentences, then give the control's number in brackets, like [7]." : "Answer with the number only.\nAnswer: [");
+}
+function webVerdict(n, pg) {
+  return n === pg.answer ? ` <span class="ok">same as the successful run</span>` : ` <span class="bad">different</span> (the run used [${pg.answer}])`;
 }
 function runWeb(mode) {
   const pg = webpage, el = document.getElementById("webout");
@@ -319,14 +295,14 @@ function runWeb(mode) {
       const best = ids.reduce((a, b) => (p[b] > p[a] ? b : a));
       const rows = ids.filter((i) => p[i] / z >= 0.01).sort((a, b) => p[b] - p[a]).slice(0, 5).map((i) => {
         const c = pg.controls.find((x) => x.i === i);
-        return `<div class="bar ${i === best ? "best" : ""}"><span>[${i}] ${esc(c.label.slice(0, 14))}</span><div class="track"><div class="fill" style="width:${(p[i] / z * 100).toFixed(1)}%"></div></div><span>${Math.round(p[i] / z * 100)}%</span></div>`; }).join("");
-      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Choose: [${best}]${best === pg.answer ? ` <span class="ok">same as the successful run</span>` : ` <span class="bad">different</span> (the run used [${pg.answer}])`}</h3>${rows}
+        return `<div class="bar ${i === best ? "best" : ""}"><span>[${i}] ${esc(c.label.slice(0, 14))}</span><div class="track"><div class="fill" style="width:${(p[i] / z * 100).toFixed(1)}%"></div></div><span>${pct(p[i] / z)}</span></div>`; }).join("");
+      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Choose: [${best}]${webVerdict(best, pg)}</h3>${rows}
         <div class="time">${dt.toFixed(2)} s · one call · 1 output token · ${ids.length} controls</div></div>`);
     } else {
       const { j, dt } = await ask(webContent(pg, true), 120, false);
       const text = j.choices[0].message.content || "", m = [...text.matchAll(/\[(\d+)\]/g)].pop();
       const best = m ? +m[1] : null;
-      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Write: ${best ? `[${best}]` : "no control named"}${best === pg.answer ? ` <span class="ok">same as the successful run</span>` : ` <span class="bad">different</span> (the run used [${pg.answer}])`}</h3>
+      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Write: ${best ? `[${best}]` : "no control named"}${best ? webVerdict(best, pg) : ""}</h3>
         <div class="written">${esc(text)}</div><div class="time">${dt.toFixed(2)} s · ${j.usage.completion_tokens} output tokens</div></div>`);
     }
   });
@@ -339,17 +315,22 @@ function renderPages() {
     webpage = PAGES[+d.dataset.k];
     const lines = webpage.controls.map((c) => `<div${c.i === webpage.answer ? ' style="background:var(--mint)"' : ""}>${esc(ctrlLine(c))}</div>`).join("");
     document.getElementById("pageview").innerHTML = `<b>Goal:</b> ${esc(webpage.goal)}<div class="truth">${esc(webpage.url)}</div>
-      <div style="max-height:180px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;font-size:11.5px;margin-top:6px;border-top:1px solid var(--line);padding-top:6px">${lines}</div>
+      <div class="ctrls">${lines}</div>
       <div class="truth">Highlighted: the control the successful run used next ([${webpage.answer}], ${esc(webpage.operation)}).</div>`;
     document.getElementById("webout").innerHTML = "";
   });
 }
 
-renderPages(); renderPapers(); renderGalaxies();
-const pct = (x) => Math.round(x * 100) + "%";
+renderPages();
+renderThumbs("gallist", GALAXIES, (g) => showGalaxy(g, g.img), "SDSS galaxy image");
+renderThumbs("speclist", SPECTRA, (s) => {
+  current.sp = s;
+  document.getElementById("specview").innerHTML = `<img src="${esc(s.img)}" alt="SDSS optical spectrum"><div class="truth">SDSS plate ${s.plate}, MJD ${s.mjd}, fiber ${s.fiber} · SDSS class: ${esc(s.truth)}</div>`;
+  document.getElementById("spout").innerHTML = "";
+}, "SDSS spectrum");
 document.getElementById("recorded").textContent =
-  `arXiv, ${RECORDED.arxiv.n} papers: choose ${pct(RECORDED.arxiv.choose_accuracy)}, write ${pct(RECORDED.arxiv.write_accuracy)}. ` +
-  `Galaxies, ${RECORDED.galaxyzoo.n}: choose ${pct(RECORDED.galaxyzoo.choose_accuracy)}, write ${pct(RECORDED.galaxyzoo.write_accuracy)} (${RECORDED.arxiv.model}, ${RECORDED.arxiv.date}).`;
+  `galaxies, ${RECORDED.galaxyzoo.n}: choose ${pct(RECORDED.galaxyzoo.choose_accuracy)}, write ${pct(RECORDED.galaxyzoo.write_accuracy)}. ` +
+  `Spectra, ${RECORDED.spectra.n}: choose ${pct(RECORDED.spectra.choose_accuracy)}, write ${pct(RECORDED.spectra.write_accuracy)} (${RECORDED.spectra.model}).`;
 </script>
 </body>
 </html>
