@@ -1,6 +1,6 @@
 # System 1 agents, live: choosing from a short list
 
-A small static page for the talk *Using AI Agents in Web Browsers* (Serat Saad, NASA AI/ML STIG, 28 September 2026).
+A small static page for the talk *AI Agents That Choose Instead of Writing* (Serat Saad, NASA AI/ML STIG, 28 September 2026).
 For the galaxy and spectra examples, the same model answers the same question twice: once by **choosing** one option (a single output token, read as
 probabilities, with the options shown in several orders and averaged), and once by **writing** its answer.
 
