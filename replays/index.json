@@ -1,0 +1,29 @@
+{
+ "simbad": {
+  "site": "SIMBAD",
+  "goal": "Using the SIMBAD basic search, search for the star Vega and open its result page. Stop as soon as the result page for Vega is showing.",
+  "status": "done",
+  "total_ms": 3504,
+  "actions": 2,
+  "decisions": 3,
+  "recorded": "2026-09-27"
+ },
+ "arxiv": {
+  "site": "arXiv",
+  "goal": "Find papers whose author is Serat Saad. Stop as soon as the list of search results is showing; do not open any paper.",
+  "status": "done",
+  "total_ms": 3869,
+  "actions": 3,
+  "decisions": 4,
+  "recorded": "2026-09-27"
+ },
+ "eso": {
+  "site": "ESO archive",
+  "goal": "In the ESO raw data archive query form, search for raw observations of the target HD 100546 and show the result table.",
+  "status": "done",
+  "total_ms": 6017,
+  "actions": 2,
+  "decisions": 5,
+  "recorded": "2026-09-27"
+ }
+}

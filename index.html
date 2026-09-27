@@ -60,6 +60,22 @@
   .err { color: var(--maroon); font-size: 14px; }
   .ctrls { max-height: 180px; overflow-y: auto; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
   footer { color: var(--faint); font-size: 12px; padding: 24px 0 40px; }
+  .player { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; }
+  @media (max-width: 900px) { .player { grid-template-columns: 1fr; } }
+  .screen { background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .screen .bar-top { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--card); }
+  .screen img { width: 100%; display: block; }
+  #rurl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; } #rinfo { white-space: nowrap; }
+  .clock { font-family: "IBM Plex Mono", monospace; font-size: 28px; font-weight: 700; color: var(--dark); }
+  .log { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; max-height: 420px; overflow-y: auto; font-size: 14px; }
+  .log div { padding: 4px 0; border-bottom: 1px solid var(--card); }
+  .log .t { font-family: "IBM Plex Mono", monospace; color: var(--muted); font-size: 12px; margin-right: 6px; }
+  .log .op { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--green); }
+  .log .act { color: var(--ink); }
+  .log .end { font-weight: 700; color: var(--deep); }
+  .runs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .runs button { font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  .runs button.on { border-color: var(--green); background: var(--mint); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -83,21 +99,26 @@
   </nav>
 
   <section id="web">
-    <div class="grid">
-      <div class="panel">
-        <h2>Pick a page</h2>
-        <div class="list" id="pagelist"></div>
-        <p class="truth" style="margin:8px 0 0">Each page is the numbered list of controls that JEV's loop saw on a real site,
-        recorded at the first step of a run that went on to succeed.</p>
-      </div>
-      <div class="panel">
-        <h2>Ask the model: which control next?</h2>
-        <div class="item-view" id="pageview">Choose a page on the left.</div>
-        <div class="row">
-          <button class="btn choose" onclick="runWeb('choose')">Choose</button>
-          <button class="btn write" onclick="runWeb('write')">Write</button>
+    <div class="panel">
+      <h2>A browser agent on astronomy websites</h2>
+      <p class="truth" style="margin:0 0 10px">Recorded runs of JEV's loop, replayed at their original speed. At every step the page is
+      turned into a numbered list of controls, and gpt-4.1-mini chooses one operation and one control from it. No page is sent as an image.</p>
+      <div class="runs" id="runs"></div>
+      <div class="player">
+        <div class="screen">
+          <div class="bar-top"><span id="rurl"></span><span id="rinfo"></span></div>
+          <img id="rimg" alt="Screenshot of the page the agent is working on">
         </div>
-        <div id="webout"></div>
+        <div>
+          <div class="row" style="margin-top:0">
+            <span class="clock" id="rclock">0.0 s</span>
+            <button class="btn choose" id="rplay" onclick="replayPlay()">Play</button>
+            <button class="btn write" onclick="replayStep()">Step</button>
+            <button class="btn" style="background:var(--muted)" onclick="replayLoad(currentRun)">Restart</button>
+          </div>
+          <div class="truth" id="rgoal"></div>
+          <div class="log" id="rlog" style="margin-top:8px"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -143,15 +164,14 @@
   </section>
 
   <footer>
-    Browser pages: the numbered controls JEV's loop saw on SIMBAD, arXiv, VizieR, ADS, NED and the ESO archive, from runs
-    that succeeded. Galaxies: SDSS images (skyserver.sdss.org) of Galaxy Zoo 2 galaxies with clear volunteer majorities
+    Browser agent: runs of JEV's loop (github.com/browser-use/jev-ultrafast) with gpt-4.1-mini as the chooser, recorded and
+    replayed at their original speed. Galaxies: SDSS images (skyserver.sdss.org) of Galaxy Zoo 2 galaxies with clear volunteer majorities
     (Willett et al. 2013, MNRAS 435, 2835). Spectra: SDSS DR18 optical spectra, plotted without labels; the answer is the
     SDSS spectroscopic class. Recorded results: <span id="recorded"></span>
   </footer>
 </main>
 
 <script src="data.js"></script>
-<script src="pages.js"></script>
 <script>
 const TABS = ["web", "gz", "sp"];
 const TASKS = {
@@ -271,57 +291,83 @@ function renderThumbs(listId, items, onPick, alt) {
   });
 }
 
-// ---- Browser agent: one step ----------------------------------------------------------------------
-const ctrlLine = (c) => `[${c.i}] ${c.role} "${c.label}"${c.value ? ` value="${c.value}"` : ""} (${c.ops.join("/")})`;
-function webContent(pg, written) {
-  return `You control a web browser. Goal: ${pg.goal}\nCurrent page: ${pg.url}\n\nControls on the page:\n` +
-    pg.controls.map(ctrlLine).join("\n") + "\n\nWhich control should be used next? " +
-    (written ? "Explain in one or two sentences, then give the control's number in brackets, like [7]." : "Answer with the number only.\nAnswer: [");
+// ---- Browser agent: recorded replays --------------------------------------------------------------
+const RUNS = ["simbad", "arxiv", "eso"];
+let currentRun = null, replay = null, timeline = [], cursor = 0, timer = null, t0 = 0, base = 0;
+
+async function replayLoad(name) {
+  clearTimeout(timer); timer = null; document.getElementById("rplay").textContent = "Play";
+  currentRun = name;
+  replay = await (await fetch(`replays/${name}/replay.json`)).json();
+  document.querySelectorAll("#runs button").forEach((b) => b.classList.toggle("on", b.dataset.run === name));
+  timeline = [
+    ...replay.frames.map((f) => ({ t: f.t_ms, kind: "frame", f })),
+    ...replay.events.map((e) => ({ t: e.t_ms, kind: e.kind, e })),
+  ].sort((a, b) => a.t - b.t || (a.kind === "frame" ? 1 : -1));
+  cursor = 0; base = 0;
+  document.getElementById("rlog").innerHTML = "";
+  document.getElementById("rgoal").innerHTML = `<b>Goal:</b> ${esc(replay.goal)}`;
+  document.getElementById("rinfo").textContent = `recorded ${replay.recorded}`;
+  showFrame(replay.frames[0]); setClock(0);
+  while (cursor < timeline.length && timeline[cursor].t === 0 && timeline[cursor].kind === "frame") cursor++;
 }
-function webVerdict(n, pg) {
-  return n === pg.answer ? ` <span class="ok">same as the successful run</span>` : ` <span class="bad">different</span> (the run used [${pg.answer}])`;
+function setClock(ms) { document.getElementById("rclock").textContent = (ms / 1000).toFixed(1) + " s"; }
+function showFrame(f) {
+  document.getElementById("rimg").src = `replays/${currentRun}/${f.image}`;
+  document.getElementById("rurl").textContent = f.url;
 }
-function runWeb(mode) {
-  const pg = webpage, el = document.getElementById("webout");
-  if (!pg) return;
-  run(el, async () => {
-    const ids = pg.controls.map((c) => c.i);
-    if (mode === "choose") {
-      const { j, dt } = await ask(webContent(pg, false), 1, true);
-      const top = {};
-      for (const t of j.choices[0].logprobs.content[0].top_logprobs) top[t.token.trim()] = Math.exp(t.logprob);
-      const p = Object.fromEntries(ids.map((i) => [i, top[String(i)] || 0]));
-      const z = Object.values(p).reduce((a, b) => a + b, 0) || 1;
-      const best = ids.reduce((a, b) => (p[b] > p[a] ? b : a));
-      const rows = ids.filter((i) => p[i] / z >= 0.01).sort((a, b) => p[b] - p[a]).slice(0, 5).map((i) => {
-        const c = pg.controls.find((x) => x.i === i);
-        return `<div class="bar ${i === best ? "best" : ""}"><span>[${i}] ${esc(c.label.slice(0, 14))}</span><div class="track"><div class="fill" style="width:${(p[i] / z * 100).toFixed(1)}%"></div></div><span>${pct(p[i] / z)}</span></div>`; }).join("");
-      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Choose: [${best}]${webVerdict(best, pg)}</h3>${rows}
-        <div class="time">${dt.toFixed(2)} s · one call · 1 output token · ${ids.length} controls</div></div>`);
-    } else {
-      const { j, dt } = await ask(webContent(pg, true), 120, false);
-      const text = j.choices[0].message.content || "", m = [...text.matchAll(/\[(\d+)\]/g)].pop();
-      const best = m ? +m[1] : null;
-      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Write: ${best ? `[${best}]` : "no control named"}${best ? webVerdict(best, pg) : ""}</h3>
-        <div class="written">${esc(text)}</div><div class="time">${dt.toFixed(2)} s · ${j.usage.completion_tokens} output tokens</div></div>`);
-    }
-  });
+function logLine(html) { const el = document.getElementById("rlog"); el.insertAdjacentHTML("beforeend", `<div>${html}</div>`); el.scrollTop = el.scrollHeight; }
+function apply(item) {
+  const t = `<span class="t">${(item.t / 1000).toFixed(2)} s</span>`;
+  if (item.kind === "frame") {
+    showFrame(item.f);
+    if (item.f === replay.frames[replay.frames.length - 1] && replay.status === "done")
+      logLine(`<span class="end">Stopped: the agent says the goal is met. ${replay.actions} actions, ${(replay.total_ms / 1000).toFixed(1)} s in total.</span>`);
+    return;
+  }
+  const e = item.e;
+  if (e.kind === "decision") {
+    const top = e.top[0] || [];
+    const what = e.operation === "DONE" || e.choice === "DONE" ? "DONE" : e.operation === "BLOCKED" ? "BLOCKED"
+      : e.operation;
+    const label = top[1] && !["DONE", "BLOCKED"].includes(top[1]) ? ` ${esc(top[1])}` : "";
+    logLine(`${t}chose <span class="op">${esc(what)}</span>${label} · p = ${Math.round((top[2] || 0) * 100)}% · ${e.latency_ms} ms`);
+  } else if (e.kind === "action") {
+    logLine(`${t}<span class="act">${e.text ? `typed “${esc(e.text)}” into` : e.operation === "WAIT" ? "waited for" : e.operation === "SELECT" ? "selected" : "clicked"} ${esc(e.label)}</span>`);
+  } else if (e.kind === "refused") {
+    logLine(`${t}<span class="bad">refused by the checks</span>`);
+  }
 }
-function renderPages() {
-  document.getElementById("pagelist").innerHTML = PAGES.map((pg, k) =>
-    `<div class="item" data-k="${k}"><div><b>${esc(pg.site)}</b>: ${esc(pg.goal)}</div><div class="cat">${pg.controls.length} controls · ${esc(pg.url)}</div></div>`).join("");
-  document.querySelectorAll("#pagelist .item").forEach((d) => d.onclick = () => {
-    document.querySelectorAll("#pagelist .item").forEach((x) => x.classList.remove("sel")); d.classList.add("sel");
-    webpage = PAGES[+d.dataset.k];
-    const lines = webpage.controls.map((c) => `<div${c.i === webpage.answer ? ' style="background:var(--mint)"' : ""}>${esc(ctrlLine(c))}</div>`).join("");
-    document.getElementById("pageview").innerHTML = `<b>Goal:</b> ${esc(webpage.goal)}<div class="truth">${esc(webpage.url)}</div>
-      <div class="ctrls">${lines}</div>
-      <div class="truth">Highlighted: the control the successful run used next ([${webpage.answer}], ${esc(webpage.operation)}).</div>`;
-    document.getElementById("webout").innerHTML = "";
-  });
+function replayStep() {
+  if (!replay || cursor >= timeline.length) return;
+  clearTimeout(timer); timer = null; document.getElementById("rplay").textContent = "Play";
+  const t = timeline[cursor].t;
+  while (cursor < timeline.length && timeline[cursor].t === t) apply(timeline[cursor++]);
+  base = t; setClock(t);
+}
+function replayPlay() {
+  if (!replay) return;
+  if (timer) { clearTimeout(timer); timer = null; document.getElementById("rplay").textContent = "Play"; return; }
+  if (cursor >= timeline.length) { replayLoad(currentRun).then(replayPlay); return; }
+  document.getElementById("rplay").textContent = "Pause";
+  t0 = performance.now() - base;
+  const tick = () => {
+    const now = performance.now() - t0;
+    while (cursor < timeline.length && timeline[cursor].t <= now) apply(timeline[cursor++]);
+    base = now; setClock(Math.min(now, replay.total_ms));
+    if (cursor >= timeline.length) { timer = null; document.getElementById("rplay").textContent = "Play"; setClock(replay.total_ms); return; }
+    timer = setTimeout(tick, 50);
+  };
+  tick();
+}
+async function renderRuns() {
+  const index = await (await fetch("replays/index.json")).json();
+  document.getElementById("runs").innerHTML = RUNS.filter((n) => index[n]).map((n) =>
+    `<button data-run="${n}" onclick="replayLoad('${n}')">${esc(index[n].site)} · ${index[n].actions} actions · ${(index[n].total_ms / 1000).toFixed(1)} s</button>`).join("");
+  replayLoad(RUNS.find((n) => index[n]));
 }
 
-renderPages();
+renderRuns();
 renderThumbs("gallist", GALAXIES, (g) => showGalaxy(g, g.img), "SDSS galaxy image");
 renderThumbs("speclist", SPECTRA, (s) => {
   current.sp = s;
