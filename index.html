@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choosing, live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1C1C1E; --muted: #5F6368; --faint: #9AA0A6; --line: #D9DCE1; --card: #F3F4F6; --bg: #FFFFFF;
+    --green: #228833; --deep: #1F6B57; --dark: #12352F; --maroon: #8B1E2F; --mint: #E3F1EC;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "IBM Plex Serif", Georgia, serif; font-size: 16px; line-height: 1.5; }
+  header { background: var(--dark); color: #fff; padding: 22px 16px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  header h1 { margin: 0 0 4px; font-size: 26px; }
+  header p { margin: 0; color: #C8D6CF; }
+  .keyrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  .keyrow input, .keyrow select { font: inherit; padding: 7px 10px; border-radius: 6px; border: 1px solid #3c5c55; background: #0d2823; color: #fff; }
+  .keyrow input { width: min(380px, 100%); }
+  .keyrow small { color: #9DB3AA; }
+  nav { display: flex; gap: 6px; margin: 20px 0 10px; }
+  nav button { font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  nav button.on { background: var(--green); border-color: var(--green); color: #fff; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border-radius: 10px; padding: 16px; min-width: 0; }
+  .panel h2 { margin: 0 0 8px; font-size: 19px; }
+  .list { max-height: 380px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .item { padding: 8px 10px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 14px; }
+  .item:hover, .item.sel { background: var(--mint); }
+  .item .cat { color: var(--muted); font-size: 12px; }
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; max-height: 380px; overflow-y: auto; }
+  .gal img { width: 100%; aspect-ratio: 1; border-radius: 6px; cursor: pointer; border: 3px solid transparent; display: block; }
+  .gal img.sel { border-color: var(--green); }
+  textarea, .coords input { width: 100%; font: inherit; font-size: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
+  .coords { display: flex; gap: 8px; margin-top: 8px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .btn { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px; border: 0; cursor: pointer; color: #fff; }
+  .btn.choose { background: var(--green); } .btn.write { background: var(--maroon); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  label.opt { font-size: 14px; color: var(--muted); }
+  .item-view { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: 14px; }
+  .item-view img { width: 180px; max-width: 100%; border-radius: 6px; display: block; margin-bottom: 8px; }
+  .truth { color: var(--muted); font-size: 13px; }
+  .result { background: #fff; border-radius: 8px; padding: 12px; border: 1px solid var(--line); margin-top: 10px; }
+  .result h3 { margin: 0 0 6px; font-size: 16px; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 48px; gap: 8px; align-items: center; font-size: 14px; margin: 3px 0; }
+  .bar .track { background: var(--card); border-radius: 4px; height: 14px; overflow: hidden; }
+  .bar .fill { background: var(--green); height: 100%; }
+  .bar.best { font-weight: 700; }
+  .time { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--muted); }
+  .ok { color: var(--green); font-weight: 700; } .bad { color: var(--maroon); font-weight: 700; }
+  .written { white-space: pre-wrap; font-size: 14px; }
+  .err { color: var(--maroon); font-size: 14px; }
+  footer { color: var(--faint); font-size: 12px; padding: 24px 0 40px; }
+  footer a { color: var(--deep); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Choosing, live</h1>
+    <p>The same model answers the same question twice: by choosing one option (one token, read as probabilities) and by writing its answer.</p>
+    <div class="keyrow">
+      <input id="key" type="password" placeholder="OpenAI API key" autocomplete="off">
+      <select id="model"><option>gpt-4.1-mini</option><option>gpt-4.1</option></select>
+      <small>The key stays in this page's memory and goes only to api.openai.com. It is not saved.</small>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav>
+    <button id="tab-arxiv" class="on" onclick="tab('arxiv')">arXiv categories</button>
+    <button id="tab-gz" onclick="tab('gz')">Galaxy morphology</button>
+  </nav>
+
+  <section id="arxiv">
+    <div class="grid">
+      <div class="panel">
+        <h2>Pick a paper</h2>
+        <div class="list" id="paperlist"></div>
+        <p class="truth" style="margin:8px 0 4px">Or paste a title and abstract:</p>
+        <textarea id="ownpaper" rows="4" placeholder="Title, then abstract"></textarea>
+      </div>
+      <div class="panel">
+        <h2>Ask the model</h2>
+        <div class="item-view" id="paperview">Choose a paper on the left.</div>
+        <div class="row">
+          <button class="btn choose" onclick="runArxiv('choose')">Choose</button>
+          <button class="btn write" onclick="runArxiv('write')">Write</button>
+          <label class="opt"><input type="checkbox" id="avg-arxiv" checked> average over option orders</label>
+        </div>
+        <div id="arxivout"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gz" hidden>
+    <div class="grid">
+      <div class="panel">
+        <h2>Pick a galaxy</h2>
+        <div class="gal" id="gallist"></div>
+        <p class="truth" style="margin:8px 0 4px">Or any SDSS position (degrees):</p>
+        <div class="coords"><input id="ra" placeholder="RA"><input id="dec" placeholder="Dec"><button class="btn choose" style="padding:6px 12px" onclick="useCoords()">Load</button></div>
+      </div>
+      <div class="panel">
+        <h2>Ask the model</h2>
+        <div class="item-view" id="galview">Choose a galaxy on the left.</div>
+        <div class="row">
+          <button class="btn choose" onclick="runGz('choose')">Choose</button>
+          <button class="btn write" onclick="runGz('write')">Write</button>
+          <label class="opt"><input type="checkbox" id="avg-gz" checked> average over option orders</label>
+        </div>
+        <div id="gzout"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    arXiv papers: the astro-ph "new" listing, with each paper's primary category as the answer. Galaxies: SDSS images
+    (skyserver.sdss.org) of Galaxy Zoo 2 galaxies with clear volunteer majorities (Willett et al. 2013, MNRAS 435, 2835).
+    Recorded results: <span id="recorded"></span>
+  </footer>
+</main>
+
+<script src="data.js"></script>
+<script>
+const ARXIV = { galaxies: "Astrophysics of Galaxies", cosmology: "Cosmology and Nongalactic Astrophysics",
+  planets: "Earth and Planetary Astrophysics", "high-energy": "High Energy Astrophysical Phenomena",
+  instruments: "Instrumentation and Methods for Astrophysics", stars: "Solar and Stellar Astrophysics" };
+const GZ = ["elliptical", "spiral", "merger"];
+let paper = null, galaxy = null;
+
+function tab(name) {
+  for (const t of ["arxiv", "gz"]) {
+    document.getElementById(t).hidden = t !== name;
+    document.getElementById("tab-" + t).classList.toggle("on", t === name);
+  }
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---- OpenAI calls -------------------------------------------------------------------------------
+async function ask(content, maxTokens, logprobs) {
+  const key = document.getElementById("key").value.trim();
+  if (!key) throw new Error("Paste an OpenAI API key at the top first.");
+  const body = { model: document.getElementById("model").value, messages: [{ role: "user", content }], max_tokens: maxTokens, temperature: 0 };
+  if (logprobs) Object.assign(body, { logprobs: true, top_logprobs: 20 });
+  const t0 = performance.now();
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error ? j.error.message : `HTTP ${r.status}`);
+  return { j, dt: (performance.now() - t0) / 1000 };
+}
+
+async function choose(makeContent, labels, average) {
+  const n = labels.length, orders = average ? labels.map((_, s) => labels.slice(s).concat(labels.slice(0, s))) : [labels];
+  const t0 = performance.now();
+  const answers = await Promise.all(orders.map((o) => ask(makeContent(o), 1, true)));
+  const wall = (performance.now() - t0) / 1000;
+  const total = Object.fromEntries(labels.map((l) => [l, 0]));
+  answers.forEach(({ j }, k) => {
+    const top = {};
+    for (const t of j.choices[0].logprobs.content[0].top_logprobs) top[t.token.trim()] = Math.exp(t.logprob);
+    const p = orders[k].map((_, i) => top[String(i + 1)] || 0), z = p.reduce((a, b) => a + b, 0) || 1;
+    orders[k].forEach((l, i) => { total[l] += p[i] / z / orders.length; });
+  });
+  const perCall = answers.map((a) => a.dt).sort((a, b) => a - b)[Math.floor(answers.length / 2)];
+  return { probs: total, best: labels.reduce((a, b) => (total[b] > total[a] ? b : a)), perCall, wall, calls: orders.length };
+}
+
+async function write(makeContent, labels) {
+  const { j, dt } = await ask(makeContent(labels, true), 120, false);
+  const text = j.choices[0].message.content || "";
+  let best = null, pos = -1;
+  for (const l of labels) { const i = text.toLowerCase().lastIndexOf(l.toLowerCase()); if (i > pos) { pos = i; best = l; } }
+  return { text, best, dt, tokens: j.usage.completion_tokens };
+}
+
+function verdict(answer, truth) {
+  if (!truth) return "";
+  return answer === truth ? ` <span class="ok">right</span>` : ` <span class="bad">wrong</span> (answer: ${esc(truth)})`;
+}
+function showChoice(el, res, truth) {
+  const bars = Object.entries(res.probs).sort((a, b) => b[1] - a[1]).map(([l, p]) =>
+    `<div class="bar ${l === res.best ? "best" : ""}"><span>${esc(l)}</span><div class="track"><div class="fill" style="width:${(p * 100).toFixed(1)}%"></div></div><span>${Math.round(p * 100)}%</span></div>`).join("");
+  el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Choose: ${esc(res.best)}${verdict(res.best, truth)}</h3>${bars}
+    <div class="time">${res.perCall.toFixed(2)} s per call · ${res.calls} call${res.calls > 1 ? "s, run in parallel" : ""} · 1 output token each</div></div>`);
+}
+function showWrite(el, res, truth) {
+  el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Write: ${esc(res.best || "no class named")}${verdict(res.best, truth)}</h3>
+    <div class="written">${esc(res.text)}</div><div class="time">${res.dt.toFixed(2)} s · ${res.tokens} output tokens</div></div>`);
+}
+async function run(el, fn) {
+  const btns = document.querySelectorAll(".btn"); btns.forEach((b) => (b.disabled = true));
+  try { await fn(); } catch (e) { el.insertAdjacentHTML("afterbegin", `<div class="result err">${esc(e.message)}</div>`); }
+  btns.forEach((b) => (b.disabled = false));
+}
+
+// ---- arXiv --------------------------------------------------------------------------------------
+function arxivContent(p) {
+  return (order, written) => `Which astro-ph section does this paper belong to?\n\nTitle: ${p.title}\nAbstract: ${p.abstract}\n\nOptions:\n` +
+    order.map((l, i) => `[${i + 1}] ${ARXIV[l]} (${l})`).join("\n") + "\n\n" +
+    (written ? "Explain in one or two sentences, then name the section." : "Answer with the number only.\nAnswer: [");
+}
+function currentPaper() {
+  const own = document.getElementById("ownpaper").value.trim();
+  if (own) { const [t, ...rest] = own.split("\n"); return { title: t, abstract: rest.join(" ") || t, truth: null }; }
+  return paper;
+}
+function runArxiv(mode) {
+  const p = currentPaper(), el = document.getElementById("arxivout");
+  if (!p) return;
+  run(el, async () => {
+    const labels = Object.keys(ARXIV);
+    if (mode === "choose") showChoice(el, await choose(arxivContent(p), labels, document.getElementById("avg-arxiv").checked), p.truth);
+    else showWrite(el, await write(arxivContent(p), labels), p.truth);
+  });
+}
+function renderPapers() {
+  document.getElementById("paperlist").innerHTML = PAPERS.map((p, i) =>
+    `<div class="item" data-i="${i}"><div>${esc(p.title)}</div><div class="cat">arXiv:${esc(p.id)} · ${esc(ARXIV[p.truth])}</div></div>`).join("");
+  document.querySelectorAll("#paperlist .item").forEach((d) => d.onclick = () => {
+    document.querySelectorAll("#paperlist .item").forEach((x) => x.classList.remove("sel")); d.classList.add("sel");
+    paper = PAPERS[+d.dataset.i]; document.getElementById("ownpaper").value = "";
+    document.getElementById("paperview").innerHTML = `<b>${esc(paper.title)}</b><p>${esc(paper.abstract.slice(0, 420))}…</p><div class="truth">Answer: ${esc(ARXIV[paper.truth])}</div>`;
+    document.getElementById("arxivout").innerHTML = "";
+  });
+}
+
+// ---- Galaxy Zoo ---------------------------------------------------------------------------------
+async function toDataUrl(src) {
+  const blob = await (await fetch(src)).blob();
+  return await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
+}
+function gzContent(url) {
+  return (order, written) => [
+    { type: "text", text: "This is an SDSS image of a galaxy. Which class is it?\n\nOptions:\n" + order.map((l, i) => `[${i + 1}] ${l}`).join("\n") +
+      "\n\n" + (written ? "Explain in one or two sentences, then name the class." : "Answer with the number only.\nAnswer: [") },
+    { type: "image_url", image_url: { url, detail: "low" } }];
+}
+function runGz(mode) {
+  if (!galaxy) return;
+  const el = document.getElementById("gzout");
+  run(el, async () => {
+    const url = await toDataUrl(galaxy.img || galaxy.url);  // sent inline: OpenAI cannot always fetch SkyServer in time
+    if (mode === "choose") showChoice(el, await choose(gzContent(url), GZ, document.getElementById("avg-gz").checked), galaxy.truth);
+    else showWrite(el, await write(gzContent(url), GZ), galaxy.truth);
+  });
+}
+function showGalaxy(g, src) {
+  galaxy = g;
+  document.getElementById("galview").innerHTML = `<img src="${esc(src)}" alt="SDSS image of the selected galaxy"><div class="truth">RA ${g.ra.toFixed(4)}, Dec ${g.dec.toFixed(4)}${g.truth ? " · Galaxy Zoo volunteers: " + esc(g.truth) : ""}</div>`;
+  document.getElementById("gzout").innerHTML = "";
+}
+function useCoords() {
+  const ra = parseFloat(document.getElementById("ra").value), dec = parseFloat(document.getElementById("dec").value);
+  if (Number.isNaN(ra) || Number.isNaN(dec)) return;
+  const url = `https://skyserver.sdss.org/dr18/SkyServerWS/ImgCutout/getjpeg?ra=${ra}&dec=${dec}&scale=0.3&width=256&height=256`;
+  document.querySelectorAll(".gal img").forEach((x) => x.classList.remove("sel"));
+  showGalaxy({ ra, dec, truth: null, url }, url);
+}
+function renderGalaxies() {
+  const order = [...GALAXIES].sort((a, b) => (a.id > b.id ? 1 : -1));
+  document.getElementById("gallist").innerHTML = order.map((g) =>
+    `<img src="${esc(g.img)}" data-id="${esc(g.id)}" alt="SDSS galaxy ${esc(g.id)}" loading="lazy">`).join("");
+  document.querySelectorAll(".gal img").forEach((im) => im.onclick = () => {
+    document.querySelectorAll(".gal img").forEach((x) => x.classList.remove("sel")); im.classList.add("sel");
+    const g = GALAXIES.find((x) => x.id === im.dataset.id); showGalaxy(g, g.img);
+  });
+}
+
+renderPapers(); renderGalaxies();
+const pct = (x) => Math.round(x * 100) + "%";
+document.getElementById("recorded").textContent =
+  `arXiv, ${RECORDED.arxiv.n} papers: choose ${pct(RECORDED.arxiv.choose_accuracy)}, write ${pct(RECORDED.arxiv.write_accuracy)}. ` +
+  `Galaxies, ${RECORDED.galaxyzoo.n}: choose ${pct(RECORDED.galaxyzoo.choose_accuracy)}, write ${pct(RECORDED.galaxyzoo.write_accuracy)} (${RECORDED.arxiv.model}, ${RECORDED.arxiv.date}).`;
+</script>
+</body>
+</html>
