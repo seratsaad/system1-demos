@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Choosing, live</title>
+<title>System 1 agents, live</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
 <style>
@@ -62,7 +62,7 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>Choosing, live</h1>
+    <h1>System 1 agents, live</h1>
     <p>The same model answers the same question twice: by choosing one option (one token, read as probabilities) and by writing its answer.</p>
     <div class="keyrow">
       <input id="key" type="password" placeholder="OpenAI API key" autocomplete="off">
@@ -74,11 +74,32 @@
 
 <main class="wrap">
   <nav>
-    <button id="tab-arxiv" class="on" onclick="tab('arxiv')">arXiv categories</button>
-    <button id="tab-gz" onclick="tab('gz')">Galaxy morphology</button>
+    <button id="tab-web" class="on" onclick="tab('web')">1 · One browser step</button>
+    <button id="tab-arxiv" onclick="tab('arxiv')">2 · arXiv categories</button>
+    <button id="tab-gz" onclick="tab('gz')">3 · Galaxy morphology</button>
   </nav>
 
-  <section id="arxiv">
+  <section id="web">
+    <div class="grid">
+      <div class="panel">
+        <h2>Pick a page</h2>
+        <div class="list" id="pagelist"></div>
+        <p class="truth" style="margin:8px 0 0">Each page is the numbered list of controls that JEV's loop saw on a real site,
+        recorded at the first step of a run that went on to succeed.</p>
+      </div>
+      <div class="panel">
+        <h2>Ask the model: which control next?</h2>
+        <div class="item-view" id="pageview">Choose a page on the left.</div>
+        <div class="row">
+          <button class="btn choose" onclick="runWeb('choose')">Choose</button>
+          <button class="btn write" onclick="runWeb('write')">Write</button>
+        </div>
+        <div id="webout"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="arxiv" hidden>
     <div class="grid">
       <div class="panel">
         <h2>Pick a paper</h2>
@@ -121,6 +142,7 @@
   </section>
 
   <footer>
+    Browser steps: the numbered controls JEV's loop saw on real astronomy sites, from runs that succeeded.
     arXiv papers: the astro-ph "new" listing, with each paper's primary category as the answer. Galaxies: SDSS images
     (skyserver.sdss.org) of Galaxy Zoo 2 galaxies with clear volunteer majorities (Willett et al. 2013, MNRAS 435, 2835).
     Recorded results: <span id="recorded"></span>
@@ -128,6 +150,7 @@
 </main>
 
 <script src="data.js"></script>
+<script src="pages.js"></script>
 <script>
 const ARXIV = { galaxies: "Astrophysics of Galaxies", cosmology: "Cosmology and Nongalactic Astrophysics",
   planets: "Earth and Planetary Astrophysics", "high-energy": "High Energy Astrophysical Phenomena",
@@ -136,7 +159,7 @@ const GZ = ["elliptical", "spiral", "merger"];
 let paper = null, galaxy = null;
 
 function tab(name) {
-  for (const t of ["arxiv", "gz"]) {
+  for (const t of ["web", "arxiv", "gz"]) {
     document.getElementById(t).hidden = t !== name;
     document.getElementById("tab-" + t).classList.toggle("on", t === name);
   }
@@ -274,7 +297,55 @@ function renderGalaxies() {
   });
 }
 
-renderPapers(); renderGalaxies();
+// ---- One browser step --------------------------------------------------------------------------
+let webpage = null;
+const ctrlLine = (c) => `[${c.i}] ${c.role} "${c.label}"${c.value ? ` value="${c.value}"` : ""} (${c.ops.join("/")})`;
+function webContent(pg, written) {
+  return `You control a web browser. Goal: ${pg.goal}\nCurrent page: ${pg.url}\n\nControls on the page:\n` +
+    pg.controls.map(ctrlLine).join("\n") + "\n\nWhich control should be used next? " +
+    (written ? "Explain in one or two sentences, then give the control's number in brackets, like [7]." : "Answer with the number only.\nAnswer: [");
+}
+function runWeb(mode) {
+  const pg = webpage, el = document.getElementById("webout");
+  if (!pg) return;
+  run(el, async () => {
+    const ids = pg.controls.map((c) => c.i);
+    if (mode === "choose") {
+      const { j, dt } = await ask(webContent(pg, false), 1, true);
+      const top = {};
+      for (const t of j.choices[0].logprobs.content[0].top_logprobs) top[t.token.trim()] = Math.exp(t.logprob);
+      const p = Object.fromEntries(ids.map((i) => [i, top[String(i)] || 0]));
+      const z = Object.values(p).reduce((a, b) => a + b, 0) || 1;
+      const best = ids.reduce((a, b) => (p[b] > p[a] ? b : a));
+      const rows = ids.filter((i) => p[i] / z >= 0.01).sort((a, b) => p[b] - p[a]).slice(0, 5).map((i) => {
+        const c = pg.controls.find((x) => x.i === i);
+        return `<div class="bar ${i === best ? "best" : ""}"><span>[${i}] ${esc(c.label.slice(0, 14))}</span><div class="track"><div class="fill" style="width:${(p[i] / z * 100).toFixed(1)}%"></div></div><span>${Math.round(p[i] / z * 100)}%</span></div>`; }).join("");
+      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Choose: [${best}]${best === pg.answer ? ` <span class="ok">same as the successful run</span>` : ` <span class="bad">different</span> (the run used [${pg.answer}])`}</h3>${rows}
+        <div class="time">${dt.toFixed(2)} s · one call · 1 output token · ${ids.length} controls</div></div>`);
+    } else {
+      const { j, dt } = await ask(webContent(pg, true), 120, false);
+      const text = j.choices[0].message.content || "", m = [...text.matchAll(/\[(\d+)\]/g)].pop();
+      const best = m ? +m[1] : null;
+      el.insertAdjacentHTML("afterbegin", `<div class="result"><h3>Write: ${best ? `[${best}]` : "no control named"}${best === pg.answer ? ` <span class="ok">same as the successful run</span>` : ` <span class="bad">different</span> (the run used [${pg.answer}])`}</h3>
+        <div class="written">${esc(text)}</div><div class="time">${dt.toFixed(2)} s · ${j.usage.completion_tokens} output tokens</div></div>`);
+    }
+  });
+}
+function renderPages() {
+  document.getElementById("pagelist").innerHTML = PAGES.map((pg, k) =>
+    `<div class="item" data-k="${k}"><div><b>${esc(pg.site)}</b>: ${esc(pg.goal)}</div><div class="cat">${pg.controls.length} controls · ${esc(pg.url)}</div></div>`).join("");
+  document.querySelectorAll("#pagelist .item").forEach((d) => d.onclick = () => {
+    document.querySelectorAll("#pagelist .item").forEach((x) => x.classList.remove("sel")); d.classList.add("sel");
+    webpage = PAGES[+d.dataset.k];
+    const lines = webpage.controls.map((c) => `<div${c.i === webpage.answer ? ' style="background:var(--mint)"' : ""}>${esc(ctrlLine(c))}</div>`).join("");
+    document.getElementById("pageview").innerHTML = `<b>Goal:</b> ${esc(webpage.goal)}<div class="truth">${esc(webpage.url)}</div>
+      <div style="max-height:180px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;font-size:11.5px;margin-top:6px;border-top:1px solid var(--line);padding-top:6px">${lines}</div>
+      <div class="truth">Highlighted: the control the successful run used next ([${webpage.answer}], ${esc(webpage.operation)}).</div>`;
+    document.getElementById("webout").innerHTML = "";
+  });
+}
+
+renderPages(); renderPapers(); renderGalaxies();
 const pct = (x) => Math.round(x * 100) + "%";
 document.getElementById("recorded").textContent =
   `arXiv, ${RECORDED.arxiv.n} papers: choose ${pct(RECORDED.arxiv.choose_accuracy)}, write ${pct(RECORDED.arxiv.write_accuracy)}. ` +
