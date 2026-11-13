@@ -13,7 +13,7 @@ probabilities, with the options shown in several orders and averaged), and once 
   spectroscopic class as the answer key.
 
 The page holds no API key. To run it, paste an OpenAI API key into the field at the top; it stays in the page's
-memory, is sent only to api.openai.com, and is not saved.
+memory, is sent only to api.openai.com, and is not saved. Reloading the page clears it.
 
 Live page: https://seratsaad.github.io/system1-demos/
 
