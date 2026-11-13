@@ -16,3 +16,9 @@ The page holds no API key. To run it, paste an OpenAI API key into the field at 
 memory, is sent only to api.openai.com, and is not saved.
 
 Live page: https://seratsaad.github.io/system1-demos/
+
+## Repository layout
+
+- `index.html`, `data.js`: the single-page demo and its bundled examples
+- `img/`: figures used by the page
+- `replays/`: recorded JEV browser-agent runs
